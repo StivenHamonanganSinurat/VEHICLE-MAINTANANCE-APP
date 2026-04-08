@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Car, Fuel, Wrench, LayoutDashboard, Menu, X } from 'lucide-react';
+import { Car, Fuel, Wrench, LayoutDashboard, BarChart3, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 
@@ -13,6 +13,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Kendaraan', path: '/vehicles', icon: Car },
     { name: 'BBM', path: '/fuel', icon: Fuel },
     { name: 'Service', path: '/service', icon: Wrench },
+    { name: 'Analisis', path: '/analysis', icon: BarChart3 },
   ];
 
   return (
