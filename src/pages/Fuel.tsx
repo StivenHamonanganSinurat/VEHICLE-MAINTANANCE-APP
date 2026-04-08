@@ -21,6 +21,19 @@ interface Vehicle {
   plat_nomor: string;
 }
 
+const FUEL_TYPES = [
+  { name: 'Pertalite', price: 10000 },
+  { name: 'Pertamax', price: 12950 },
+  { name: 'Pertamax Turbo', price: 14400 },
+  { name: 'Biosolar', price: 6800 },
+  { name: 'Dexlite', price: 14550 },
+  { name: 'Pertamina Dex', price: 15100 },
+  { name: 'Shell Super', price: 14530 },
+  { name: 'Shell V-Power', price: 15370 },
+  { name: 'Shell V-Power Diesel', price: 15740 },
+  { name: 'Lainnya', price: 0 },
+];
+
 export default function FuelLogs() {
   const [logs, setLogs] = useState<FuelLog[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -39,6 +52,17 @@ export default function FuelLogs() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleFuelTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedType = e.target.value;
+    const fuel = FUEL_TYPES.find(f => f.name === selectedType);
+    
+    setFormData(prev => ({
+      ...prev,
+      jenis_bbm: selectedType,
+      harga_perliter: fuel ? fuel.price : prev.harga_perliter
+    }));
+  };
 
   async function fetchData() {
     setLoading(true);
@@ -153,13 +177,15 @@ export default function FuelLogs() {
               </div>
               <div className="flex flex-col">
                 <label className="text-xs font-bold uppercase mb-1">Jenis BBM</label>
-                <input
+                <select
                   required
                   className="input-field"
-                  placeholder="Contoh: Pertamax"
                   value={formData.jenis_bbm}
-                  onChange={(e) => setFormData({ ...formData, jenis_bbm: e.target.value })}
-                />
+                  onChange={handleFuelTypeChange}
+                >
+                  <option value="">-- Pilih Jenis BBM --</option>
+                  {FUEL_TYPES.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+                </select>
               </div>
               <div className="flex flex-col">
                 <label className="text-xs font-bold uppercase mb-1">Jumlah Liter</label>
