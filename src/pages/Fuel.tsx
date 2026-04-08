@@ -39,6 +39,7 @@ export default function FuelLogs() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [fuelTypeFilter, setFuelTypeFilter] = useState<string>('all');
   const [formData, setFormData] = useState({
     kendaraan_id: '',
     tanggal: format(new Date(), 'yyyy-MM-dd'),
@@ -116,21 +117,40 @@ export default function FuelLogs() {
     }
   }
 
+  const filteredLogs = fuelTypeFilter === 'all' 
+    ? logs 
+    : logs.filter(log => log.jenis_bbm === fuelTypeFilter);
+
   return (
     <div className="space-y-8">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-black text-text-black tracking-tighter uppercase italic">
             Log <span className="text-dark-green">Bahan Bakar</span>
           </h1>
           <p className="text-gray-600">Catatan pengisian bahan bakar kendaraan Anda.</p>
         </div>
-        <button 
-          onClick={() => setShowForm(!showForm)}
-          className="btn-primary flex items-center gap-2"
-        >
-          {showForm ? 'Batal' : <><Plus size={20} /> Tambah Log</>}
-        </button>
+        
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-white border-2 border-dark-green rounded px-2 py-1">
+            <label className="text-[10px] font-bold uppercase text-gray-400">Filter:</label>
+            <select 
+              className="text-xs font-bold bg-transparent focus:outline-none"
+              value={fuelTypeFilter}
+              onChange={(e) => setFuelTypeFilter(e.target.value)}
+            >
+              <option value="all">Semua Jenis BBM</option>
+              {FUEL_TYPES.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+            </select>
+          </div>
+          
+          <button 
+            onClick={() => setShowForm(!showForm)}
+            className="btn-primary flex items-center gap-2"
+          >
+            {showForm ? 'Batal' : <><Plus size={20} /> Tambah Log</>}
+          </button>
+        </div>
       </header>
 
       <AnimatePresence>
@@ -235,10 +255,10 @@ export default function FuelLogs() {
           <tbody>
             {loading ? (
               <tr><td colSpan={6} className="p-8 text-center text-gray-500 italic">Memuat data...</td></tr>
-            ) : logs.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-500 italic">Belum ada catatan pengisian BBM.</td></tr>
+            ) : filteredLogs.length === 0 ? (
+              <tr><td colSpan={6} className="p-8 text-center text-gray-500 italic">Belum ada catatan pengisian BBM untuk filter ini.</td></tr>
             ) : (
-              logs.map((log) => (
+              filteredLogs.map((log) => (
                 <tr key={log.id} className="border-b border-gray-100 hover:bg-neon-green/5 transition-colors">
                   <td className="p-4 font-medium">{format(new Date(log.tanggal), 'dd MMM yyyy')}</td>
                   <td className="p-4">
