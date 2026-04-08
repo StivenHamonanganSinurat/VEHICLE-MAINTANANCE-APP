@@ -1,0 +1,5 @@
+{
+  "name": "Vehicle Maintenance App",
+  "description": "A comprehensive app for tracking vehicle maintenance, fuel logs, and service history using Supabase.",
+  "requestFramePermissions": []
+}

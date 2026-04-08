@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-neon-green: #00FF00;
+  --color-dark-green: #008800;
+  --color-light-gray: #F0F0F0;
+  --color-text-black: #1A1A1A;
+}
+
+@layer base {
+  body {
+    @apply bg-light-gray text-text-black font-sans;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-neon-green text-text-black font-bold py-2 px-4 rounded transition-all hover:bg-dark-green hover:text-white;
+  }
+  
+  .card {
+    @apply bg-white border-2 border-dark-green p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,136,0,1)];
+  }
+
+  .input-field {
+    @apply border-2 border-dark-green p-2 rounded bg-white focus:outline-none focus:ring-2 focus:ring-neon-green;
+  }
+}
