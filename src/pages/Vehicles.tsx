@@ -38,13 +38,22 @@ export default function Vehicles() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await supabase.from('kendaraan').insert([formData]);
-    if (error) {
-      alert('Gagal menambah kendaraan: ' + error.message);
-    } else {
-      setShowForm(false);
-      setFormData({ plat_nomor: '', jenis_kendaraan: '', tahun: new Date().getFullYear(), kilometer: 0, warna: '' });
-      fetchVehicles();
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('kendaraan').insert([formData]);
+      if (error) {
+        console.error('Supabase Error:', error);
+        alert(`Gagal menambah kendaraan: ${error.message} (${error.code || 'No Code'})`);
+      } else {
+        setShowForm(false);
+        setFormData({ plat_nomor: '', jenis_kendaraan: '', tahun: new Date().getFullYear(), kilometer: 0, warna: '' });
+        fetchVehicles();
+      }
+    } catch (err) {
+      console.error('Unexpected Error:', err);
+      alert(`Terjadi kesalahan jaringan: ${err instanceof Error ? err.message : 'Unknown error'}. Pastikan koneksi internet stabil dan URL Supabase benar.`);
+    } finally {
+      setLoading(false);
     }
   }
 
