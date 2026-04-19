@@ -202,7 +202,8 @@ export default function FuelLogs() {
   async function syncVehicleKM(vehicleId: string) {
     if (!vehicleId) return;
     
-    const { data: latestLogs, error: logError } = await supabase
+    // Get latest Fuel KM
+    const { data: latestFuel } = await supabase
       .from('bahan_bakar')
       .select('kilometer')
       .eq('kendaraan_id', vehicleId)
@@ -210,14 +211,25 @@ export default function FuelLogs() {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    if (logError) return;
+    // Get latest Service KM
+    const { data: latestService } = await supabase
+      .from('service')
+      .select('kilometer_service')
+      .eq('kendaraan_id', vehicleId)
+      .order('tanggal_service', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    const latestKM = (latestLogs && latestLogs.length > 0) ? latestLogs[0].kilometer : 0;
+    const fuelKM = (latestFuel && latestFuel.length > 0) ? latestFuel[0].kilometer : 0;
+    const serviceKM = (latestService && latestService.length > 0) ? latestService[0].kilometer_service : 0;
+    
+    const latestKM = Math.max(fuelKM, serviceKM);
 
-    await supabase
-      .from('kendaraan')
-      .update({ kilometer: latestKM })
-      .eq('id', vehicleId);
+    // Get current vehicle KM to avoid unnecessary updates if logs are somehow lower than manual setting
+    const { data: vehicle } = await supabase.from('kendaraan').select('kilometer').eq('id', vehicleId).single();
+    if (vehicle && latestKM > vehicle.kilometer) {
+      await supabase.from('kendaraan').update({ kilometer: latestKM }).eq('id', vehicleId);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -327,7 +339,7 @@ export default function FuelLogs() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Pilih Unit</label>
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Pilih Kendaraan</label>
                   <select
                     required
                     className="w-full bg-light-gray border-2 border-transparent focus:border-orange-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"

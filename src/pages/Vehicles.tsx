@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Car, Plus, Trash2, Calendar, Hash, Palette, Edit2, ChevronRight, Gauge } from 'lucide-react';
+import { Car, Plus, Trash2, Calendar, Hash, Palette, Edit2, ChevronRight, Gauge, Bike, Truck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import DeleteModal from '../components/DeleteModal';
 
@@ -11,6 +11,7 @@ interface Vehicle {
   tahun: number;
   kilometer: number;
   warna: string;
+  roda: number;
 }
 
 export default function Vehicles() {
@@ -28,6 +29,7 @@ export default function Vehicles() {
     tahun: new Date().getFullYear(),
     kilometer: 0,
     warna: '',
+    roda: 4,
   });
 
   useEffect(() => {
@@ -43,9 +45,10 @@ export default function Vehicles() {
       return;
     }
     
-    // Self-healing: Update KM for each vehicle based on latest Fuel Log
+    // Self-healing: Update Odometer based on the latest Fuel OR Service log
     const updatedVehicles = await Promise.all((vData || []).map(async (v) => {
-      const { data: latestLog } = await supabase
+      // Get latest Fuel KM
+      const { data: latestFuel } = await supabase
         .from('bahan_bakar')
         .select('kilometer')
         .eq('kendaraan_id', v.id)
@@ -53,10 +56,23 @@ export default function Vehicles() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      const latestKM = latestLog && latestLog.length > 0 ? latestLog[0].kilometer : v.kilometer;
+      // Get latest Service KM
+      const { data: latestService } = await supabase
+        .from('service')
+        .select('kilometer_service')
+        .eq('kendaraan_id', v.id)
+        .order('tanggal_service', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      // If mismatch, sync to DB
-      if (latestKM !== v.kilometer) {
+      const fuelKM = (latestFuel && latestFuel.length > 0) ? latestFuel[0].kilometer : 0;
+      const serviceKM = (latestService && latestService.length > 0) ? latestService[0].kilometer_service : 0;
+      
+      // Use the maximum value across all logs and current value
+      const latestKM = Math.max(fuelKM, serviceKM, v.kilometer);
+
+      // If mismatch (and latestKM > v.kilometer), sync to DB
+      if (latestKM > v.kilometer) {
         await supabase.from('kendaraan').update({ kilometer: latestKM }).eq('id', v.id);
         return { ...v, kilometer: latestKM };
       }
@@ -75,6 +91,7 @@ export default function Vehicles() {
       tahun: vehicle.tahun,
       kilometer: vehicle.kilometer,
       warna: vehicle.warna,
+      roda: vehicle.roda || 4,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -98,7 +115,7 @@ export default function Vehicles() {
 
       setShowForm(false);
       setEditingVehicle(null);
-      setFormData({ plat_nomor: '', jenis_kendaraan: '', tahun: new Date().getFullYear(), kilometer: 0, warna: '' });
+      setFormData({ plat_nomor: '', jenis_kendaraan: '', tahun: new Date().getFullYear(), kilometer: 0, warna: '', roda: 4 });
       fetchVehicles();
     } catch (err) {
       console.error('Supabase Error:', err);
@@ -113,8 +130,13 @@ export default function Vehicles() {
     
     setIsDeleting(true);
     try {
+      // Manual cascade deletion to ensure CRUD works even if DB constraints aren't set to CASCADE
+      await supabase.from('bahan_bakar').delete().eq('kendaraan_id', vehicleToDelete);
+      await supabase.from('service').delete().eq('kendaraan_id', vehicleToDelete);
+      
       const { error } = await supabase.from('kendaraan').delete().eq('id', vehicleToDelete);
       if (error) throw error;
+      
       await fetchVehicles();
       setVehicleToDelete(null);
     } catch (err) {
@@ -128,7 +150,7 @@ export default function Vehicles() {
   function handleCancel() {
     setShowForm(false);
     setEditingVehicle(null);
-    setFormData({ plat_nomor: '', jenis_kendaraan: '', tahun: new Date().getFullYear(), kilometer: 0, warna: '' });
+    setFormData({ plat_nomor: '', jenis_kendaraan: '', tahun: new Date().getFullYear(), kilometer: 0, warna: '', roda: 4 });
   }
 
   return (
@@ -138,7 +160,7 @@ export default function Vehicles() {
           <h1 className="text-3xl md:text-4xl font-black text-text-black tracking-tighter uppercase italic">
             Garasi <span className="text-dark-green">Saya</span>
           </h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Total {vehicles.length} Kendaraan Terdaftar</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Total {vehicles.length} Kendaraan Tersimpan</p>
         </div>
         <motion.button 
           whileTap={{ scale: 0.95 }}
@@ -152,7 +174,7 @@ export default function Vehicles() {
               : 'bg-dark-green text-white hover:bg-neon-green hover:text-text-black'
           }`}
         >
-          {showForm ? 'Batal' : <><Plus size={20} /> Tambah Mobil</>}
+          {showForm ? 'Batal' : <><Plus size={20} /> Kendaraan Baru</>}
         </motion.button>
       </header>
 
@@ -164,7 +186,7 @@ export default function Vehicles() {
             exit={{ opacity: 0, y: -20 }}
             className="bg-white rounded-3xl p-6 shadow-xl border-2 border-dark-green/5"
           >
-            <h2 className="text-xl font-black uppercase italic text-dark-green mb-6">{editingVehicle ? 'Update Data' : 'Daftarkan Unit Baru'}</h2>
+            <h2 className="text-xl font-black uppercase italic text-dark-green mb-6">{editingVehicle ? 'Edit Detail Kendaraan' : 'Daftarkan Kendaraan Baru'}</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -210,11 +232,41 @@ export default function Vehicles() {
                     onChange={(e) => setFormData({ ...formData, warna: e.target.value })}
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Konfigurasi Roda</label>
+                  <select
+                    required
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-neon-green focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all appearance-none"
+                    value={formData.roda}
+                    onChange={(e) => setFormData({ ...formData, roda: parseInt(e.target.value) })}
+                  >
+                    <option value={2}>Roda 2 (Motor / Sepeda Motor)</option>
+                    <option value={3}>Roda 3 (Bemo / Bajaj / Bentor)</option>
+                    <option value={4}>Roda 4 (Mobil / MPV / SUV / Sedan)</option>
+                    <option value={6}>Roda 6 (Truk Engkel / Bus Medium)</option>
+                    <option value={8}>Roda 8 (Truk Tronton / Large Bus)</option>
+                    <option value={10}>Roda 10 (Truk / Trailer / Tronton)</option>
+                    <option value={12}>Roda 12 (Trailer / Heavy Duty)</option>
+                    <option value={14}>Roda 14 (Trailer / Heavy Duty)</option>
+                    <option value={16}>Roda 16+ (Heavy Equipment / Logistic)</option>
+                  </select>
+                </div>
                 <div className="space-y-1 col-span-2 md:col-span-1">
-                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Kilometer (Otomatis)</label>
-                  <div className="flex items-center bg-gray-100 rounded-xl px-4 py-3 border-2 border-transparent">
-                    <Gauge size={16} className="text-dark-green mr-2" />
-                    <span className="font-bold text-dark-green">{formData.kilometer} KM</span>
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Odometer / Kilometer</label>
+                  <div className="relative">
+                    <Gauge size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-green" />
+                    <input
+                      required
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full bg-light-gray border-2 border-transparent focus:border-neon-green focus:bg-white rounded-xl pl-10 pr-4 py-3 outline-none font-bold transition-all"
+                      placeholder="0"
+                      value={formData.kilometer}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(',', '.');
+                        setFormData({ ...formData, kilometer: parseFloat(val) || 0 });
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -266,7 +318,9 @@ export default function Vehicles() {
             >
               <div className="flex justify-between items-start mb-6">
                 <div className="bg-dark-green h-12 w-12 rounded-2xl flex items-center justify-center text-neon-green shadow-xl">
-                  <Car size={24} strokeWidth={2.5} />
+                  {vehicle.roda === 2 ? <Bike size={24} strokeWidth={2.5} /> : 
+                   vehicle.roda >= 6 ? <Truck size={24} strokeWidth={2.5} /> : 
+                   <Car size={24} strokeWidth={2.5} />}
                 </div>
                 <div className="flex bg-light-gray p-1 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
@@ -287,7 +341,10 @@ export default function Vehicles() {
               </div>
 
               <div className="space-y-1 mb-8">
-                <h3 className="text-2xl font-black tracking-tighter uppercase italic text-text-black leading-none">{vehicle.plat_nomor}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-2xl font-black tracking-tighter uppercase italic text-text-black leading-none">{vehicle.plat_nomor}</h3>
+                  <span className="bg-neon-green/20 text-dark-green text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Roda {vehicle.roda || 4}</span>
+                </div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-dark-green opacity-70">{vehicle.jenis_kendaraan}</p>
               </div>
 

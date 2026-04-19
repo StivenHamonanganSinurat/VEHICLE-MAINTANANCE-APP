@@ -148,7 +148,7 @@ export default function Dashboard() {
               <div className="bg-blue-50 p-2 rounded-lg"><Car size={16} className="text-blue-600" /></div>
               <span className="text-[9px] font-bold uppercase text-gray-400 tracking-wider">Garasi</span>
             </div>
-            <h4 className="text-2xl font-black text-text-black">{stats.totalVehicles} <span className="text-[10px] font-normal text-gray-400">Unit</span></h4>
+            <h4 className="text-2xl font-black text-text-black">{stats.totalVehicles} <span className="text-[10px] font-normal text-gray-400">Kendaraan</span></h4>
           </motion.div>
 
           <motion.div whileHover={{ y: -5 }} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">

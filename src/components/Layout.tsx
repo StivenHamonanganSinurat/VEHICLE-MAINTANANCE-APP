@@ -9,7 +9,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { name: 'Home', path: '/', icon: LayoutDashboard },
-    { name: 'Mobil', path: '/vehicles', icon: Car },
+    { name: 'Kendaraan', path: '/vehicles', icon: Car },
     { name: 'BBM', path: '/fuel', icon: Fuel },
     { name: 'Service', path: '/service', icon: Wrench },
     { name: 'Data', path: '/analysis', icon: BarChart3 },

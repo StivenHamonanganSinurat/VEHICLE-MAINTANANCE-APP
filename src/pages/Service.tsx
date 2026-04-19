@@ -131,6 +131,9 @@ export default function ServiceLogs() {
         if (error) throw error;
       }
 
+      // Sync vehicle KM after insert/update
+      await syncVehicleKM(formData.kendaraan_id);
+
       handleCancelForm();
       fetchData();
     } catch (err) {
@@ -141,12 +144,52 @@ export default function ServiceLogs() {
     }
   }
 
+  async function syncVehicleKM(vehicleId: string) {
+    if (!vehicleId) return;
+    
+    // Get latest Fuel KM
+    const { data: latestFuel } = await supabase
+      .from('bahan_bakar')
+      .select('kilometer')
+      .eq('kendaraan_id', vehicleId)
+      .order('tanggal', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    // Get latest Service KM
+    const { data: latestService } = await supabase
+      .from('service')
+      .select('kilometer_service')
+      .eq('kendaraan_id', vehicleId)
+      .order('tanggal_service', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const fuelKM = (latestFuel && latestFuel.length > 0) ? latestFuel[0].kilometer : 0;
+    const serviceKM = (latestService && latestService.length > 0) ? latestService[0].kilometer_service : 0;
+    
+    const latestKM = Math.max(fuelKM, serviceKM);
+
+    // Get current vehicle KM to avoid unnecessary updates if logs are somehow lower than manual setting
+    const { data: vehicle } = await supabase.from('kendaraan').select('kilometer').eq('id', vehicleId).single();
+    if (vehicle && latestKM > vehicle.kilometer) {
+      await supabase.from('kendaraan').update({ kilometer: latestKM }).eq('id', vehicleId);
+    }
+  }
+
   async function confirmDelete() {
     if (!logToDelete) return;
     setIsDeleting(true);
     try {
       const { error } = await supabase.from('service').delete().eq('id', logToDelete);
       if (error) throw error;
+      
+      // Sync vehicle KM after delete
+      const deletedLog = logs.find(l => l.id === logToDelete);
+      if (deletedLog) {
+        await syncVehicleKM(deletedLog.kendaraan_id);
+      }
+
       await fetchData();
       setLogToDelete(null);
     } catch (err) {
@@ -193,7 +236,7 @@ export default function ServiceLogs() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Pilih Unit</label>
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Pilih Kendaraan</label>
                   <select
                     required
                     className="w-full bg-light-gray border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
