@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Fuel, Plus, Trash2, Calendar, Droplets, DollarSign, Car, Edit2 } from 'lucide-react';
+import { Fuel, Plus, Trash2, Calendar, Droplets, DollarSign, Car, Edit2, Search, Filter, Hash, Gauge, MapPin, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import DeleteModal from '../components/DeleteModal';
@@ -44,11 +44,9 @@ export default function FuelLogs() {
   const [editingLog, setEditingLog] = useState<FuelLog | null>(null);
   const [fuelTypeFilter, setFuelTypeFilter] = useState<string>('all');
   
-  // Add state for deletion
   const [logToDelete, setLogToDelete] = useState<{ id: string; vehicleId: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // Raw input states to handle commas and empty values naturally
   const [kmInput, setKmInput] = useState('');
   const [totalInput, setTotalInput] = useState('');
   const [literInput, setLiterInput] = useState('');
@@ -83,7 +81,6 @@ export default function FuelLogs() {
         harga_perliter: newPrice,
       };
       
-      // If user had a total price set, update liters based on new fuel price
       if (newPrice > 0 && prev.total_harga > 0) {
         const newLiters = prev.total_harga / newPrice;
         updated.jumlah_liter = newLiters;
@@ -140,7 +137,6 @@ export default function FuelLogs() {
   };
 
   const handleKMInputChange = (val: string) => {
-    // Standardize input: replace comma with dot for internal parsing if user still types it
     const cleanVal = val.replace(',', '.');
     setKmInput(cleanVal);
     const km = parseFloat(cleanVal) || 0;
@@ -203,13 +199,9 @@ export default function FuelLogs() {
     setLoading(false);
   }
 
-  // Removed general logic to handle complex priorities
-  // Logic moved to direct handlers for better UX control
-
   async function syncVehicleKM(vehicleId: string) {
     if (!vehicleId) return;
     
-    // Ambil log BBM dengan tanggal terbaru (desc) untuk kendaraan ini
     const { data: latestLogs, error: logError } = await supabase
       .from('bahan_bakar')
       .select('kilometer')
@@ -218,14 +210,10 @@ export default function FuelLogs() {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    if (logError) {
-      console.error('Gagal fetch log terbaru untuk sinkronisasi:', logError);
-      return;
-    }
+    if (logError) return;
 
     const latestKM = (latestLogs && latestLogs.length > 0) ? latestLogs[0].kilometer : 0;
 
-    // Update paksa ke tabel kendaraan
     await supabase
       .from('kendaraan')
       .update({ kilometer: latestKM })
@@ -238,7 +226,6 @@ export default function FuelLogs() {
     
     setLoading(true);
     try {
-      // Pastikan payload bersih (hanya kolom database)
       const payload = {
         kendaraan_id: formData.kendaraan_id,
         tanggal: formData.tanggal,
@@ -250,27 +237,20 @@ export default function FuelLogs() {
         kilometer: parseFloat(formData.kilometer.toString()) || 0,
       };
 
-      let result;
       if (editingLog) {
-        result = await supabase
-          .from('bahan_bakar')
-          .update(payload)
-          .eq('id', editingLog.id);
+        const { error } = await supabase.from('bahan_bakar').update(payload).eq('id', editingLog.id);
+        if (error) throw error;
       } else {
-        result = await supabase.from('bahan_bakar').insert([payload]);
+        const { error } = await supabase.from('bahan_bakar').insert([payload]);
+        if (error) throw error;
       }
 
-      if (result.error) throw result.error;
-
-      // Sinkronisasi sinkron (tunggu sampai selesai)
       await syncVehicleKM(formData.kendaraan_id);
-      
       handleCancelForm();
       await fetchData();
-      alert('Data berhasil disimpan!');
     } catch (err) {
-      console.error('Database Error:', err);
-      alert(`Gagal menyimpan: ${err instanceof Error ? err.message : 'Error tidak diketahui'}`);
+      console.error(err);
+      alert('Gagal menyimpan data.');
     } finally {
       setLoading(false);
     }
@@ -278,18 +258,15 @@ export default function FuelLogs() {
 
   async function confirmDelete() {
     if (!logToDelete) return;
-    
     setIsDeleting(true);
     try {
       const { error } = await supabase.from('bahan_bakar').delete().eq('id', logToDelete.id);
       if (error) throw error;
-      
       await syncVehicleKM(logToDelete.vehicleId);
       await fetchData();
       setLogToDelete(null);
     } catch (err) {
-      console.error('Delete Error:', err);
-      alert('Gagal menghapus: ' + (err instanceof Error ? err.message : 'Error tidak diketahui'));
+      console.error(err);
     } finally {
       setIsDeleting(false);
     }
@@ -300,146 +277,159 @@ export default function FuelLogs() {
     : logs.filter(log => log.jenis_bbm === fuelTypeFilter);
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 pb-20">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-black text-text-black tracking-tighter uppercase italic">
-            Log <span className="text-dark-green">Bahan Bakar</span>
+          <h1 className="text-3xl md:text-4xl font-black text-text-black tracking-tighter uppercase italic">
+            Log <span className="text-orange-500">BBM</span>
           </h1>
-          <p className="text-gray-600">Catatan pengisian bahan bakar kendaraan Anda.</p>
+          <div className="flex items-center gap-2 mt-1">
+             <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
+             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{logs.length} Catatan Entry</p>
+          </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border-2 border-dark-green rounded px-2 py-1">
-            <label className="text-[10px] font-bold uppercase text-gray-400">Filter:</label>
-            <select 
-              className="text-xs font-bold bg-transparent focus:outline-none"
-              value={fuelTypeFilter}
-              onChange={(e) => setFuelTypeFilter(e.target.value)}
-            >
-              <option value="all">Semua Jenis BBM</option>
-              {FUEL_TYPES.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
-            </select>
+        <div className="flex w-full sm:w-auto items-center gap-2">
+          <div className="flex-grow sm:flex-grow-0 relative">
+             <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+             <select 
+                className="w-full sm:w-auto pl-10 pr-4 py-3 bg-white border-2 border-gray-100 rounded-xl text-xs font-bold uppercase focus:border-orange-500 outline-none transition-all"
+                value={fuelTypeFilter}
+                onChange={(e) => setFuelTypeFilter(e.target.value)}
+              >
+                <option value="all">Semua BBM</option>
+                {FUEL_TYPES.filter(f => f.name !== 'Lainnya').map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
           </div>
           
-          <button 
+          <motion.button 
+            whileTap={{ scale: 0.95 }}
             onClick={() => {
               if (showForm) handleCancelForm();
               else setShowForm(true);
             }}
-            className="btn-primary flex items-center gap-2"
+            className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-black uppercase italic tracking-tight shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
           >
-            {showForm ? 'Batal' : <><Plus size={20} /> Tambah Log</>}
-          </button>
+            {showForm ? 'Batal' : <><Plus size={20} /> Entry Baru</>}
+          </motion.button>
         </div>
       </header>
 
       <AnimatePresence>
         {showForm && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="card bg-white"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-white rounded-3xl p-6 shadow-xl border-2 border-orange-500/5 overflow-hidden"
           >
-            <h2 className="text-xl font-bold mb-4">{editingLog ? 'Edit Log BBM' : 'Tambah Log BBM'}</h2>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Pilih Kendaraan</label>
-                <select
-                  required
-                  className="input-field"
-                  value={formData.kendaraan_id}
-                  onChange={(e) => setFormData({ ...formData, kendaraan_id: e.target.value })}
+            <h2 className="text-xl font-black uppercase italic text-orange-600 mb-6">{editingLog ? 'Edit Catatan' : 'Input Pembelian BBM'}</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Pilih Unit</label>
+                  <select
+                    required
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-orange-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
+                    value={formData.kendaraan_id}
+                    onChange={(e) => setFormData({ ...formData, kendaraan_id: e.target.value })}
+                  >
+                    <option value="">-- Pilih --</option>
+                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.plat_nomor}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Tanggal</label>
+                  <input
+                    required
+                    type="date"
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-orange-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
+                    value={formData.tanggal}
+                    onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Jenis Bahan Bakar</label>
+                  <select
+                    required
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-orange-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
+                    value={formData.jenis_bbm}
+                    onChange={handleFuelTypeChange}
+                  >
+                    <option value="">-- Pilih --</option>
+                    {FUEL_TYPES.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Nama SPBU (Lokasi)</label>
+                  <input
+                    required
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-orange-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
+                    placeholder="Contoh: Pertamina 31.xxx"
+                    value={formData.nama_pom}
+                    onChange={(e) => setFormData({ ...formData, nama_pom: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-orange-50/50 p-4 rounded-2xl border border-orange-100">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-orange-600/50 ml-1">Harga / Liter</label>
+                  <input
+                    required
+                    type="number"
+                    className="w-full bg-white border-2 border-transparent focus:border-orange-500 rounded-xl px-4 py-3 outline-none font-black text-orange-600 transition-all"
+                    value={priceInput}
+                    onChange={(e) => handlePriceInputChange(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-orange-600/50 ml-1">Total Bayar (Rp)</label>
+                  <input
+                    required
+                    type="number"
+                    className="w-full bg-white border-2 border-orange-500 rounded-xl px-4 py-3 outline-none font-black text-orange-600 transition-all text-xl"
+                    placeholder="36000"
+                    value={totalInput}
+                    onChange={(e) => handleTotalInputChange(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-orange-600/50 ml-1">Liter (Auto)</label>
+                  <input
+                    required
+                    type="text"
+                    className="w-full bg-orange-100/50 border-2 border-transparent rounded-xl px-4 py-3 outline-none font-black text-orange-900 transition-all"
+                    value={literInput}
+                    onChange={(e) => handleLiterInputChange(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-orange-600/50 ml-1">Odometer (KM)</label>
+                  <input
+                    required
+                    type="text"
+                    className="w-full bg-white border-2 border-transparent focus:border-orange-500 rounded-xl px-4 py-3 outline-none font-black text-orange-600 transition-all"
+                    placeholder="12500"
+                    value={kmInput}
+                    onChange={(e) => handleKMInputChange(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <motion.button 
+                  whileTap={{ scale: 0.98 }}
+                  type="submit" 
+                  disabled={loading}
+                  className="flex-grow bg-orange-500 text-white font-black uppercase italic tracking-widest py-4 rounded-xl shadow-lg shadow-orange-500/20"
                 >
-                  <option value="">-- Pilih Kendaraan --</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.plat_nomor}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Tanggal</label>
-                <input
-                  required
-                  type="date"
-                  className="input-field"
-                  value={formData.tanggal}
-                  onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Nama SPBU</label>
-                <input
-                  required
-                  className="input-field"
-                  placeholder="Contoh: Pertamina Pasti Pas"
-                  value={formData.nama_pom}
-                  onChange={(e) => setFormData({ ...formData, nama_pom: e.target.value })}
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Jenis BBM</label>
-                <select
-                  required
-                  className="input-field"
-                  value={formData.jenis_bbm}
-                  onChange={handleFuelTypeChange}
-                >
-                  <option value="">-- Pilih Jenis BBM --</option>
-                  {FUEL_TYPES.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Harga per Liter</label>
-                <input
-                  required
-                  type="number"
-                  className="input-field"
-                  value={priceInput}
-                  onChange={(e) => handlePriceInputChange(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Total Bayar (Rp)</label>
-                <input
-                  required
-                  type="number"
-                  className="input-field font-bold text-dark-green"
-                  placeholder="Contoh: 36000"
-                  value={totalInput}
-                  onChange={(e) => handleTotalInputChange(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col border-2 border-dashed border-gray-200 p-2 rounded bg-gray-50">
-                <label className="text-xs font-bold uppercase mb-1">Jumlah Liter (Otomatis)</label>
-                <input
-                  required
-                  type="text"
-                  inputMode="decimal"
-                  className="bg-transparent font-black text-xl focus:outline-none"
-                  value={literInput}
-                  onChange={(e) => handleLiterInputChange(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">KM Saat Ini</label>
-                <input
-                  required
-                  type="text"
-                  inputMode="decimal"
-                  className="input-field font-bold text-dark-green"
-                  placeholder="Contoh: 12500,5"
-                  value={kmInput}
-                  onChange={(e) => handleKMInputChange(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end lg:col-span-2 gap-2">
-                <button type="submit" disabled={loading} className="btn-primary flex-1">
-                  {loading ? 'Menyimpan...' : (editingLog ? 'Update Log BBM' : 'Simpan Log BBM')}
-                </button>
+                  {loading ? 'Processing...' : (editingLog ? 'Update Catatan' : 'Simpan Log BBM')}
+                </motion.button>
                 <button 
                   type="button"
                   onClick={handleCancelForm}
-                  className="px-6 py-3 border-2 border-gray-200 text-gray-400 font-bold rounded hover:bg-gray-50 transition-colors"
+                  className="px-8 py-4 font-bold uppercase text-gray-400 hover:text-text-black transition-colors"
                 >
                   Batal
                 </button>
@@ -449,82 +439,101 @@ export default function FuelLogs() {
         )}
       </AnimatePresence>
 
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-dark-green text-white">
-              <th className="p-4 text-xs font-bold uppercase tracking-widest">Tanggal</th>
-              <th className="p-4 text-xs font-bold uppercase tracking-widest">Kendaraan</th>
-              <th className="p-4 text-xs font-bold uppercase tracking-widest">SPBU / BBM</th>
-              <th className="p-4 text-xs font-bold uppercase tracking-widest">Kilometer</th>
-              <th className="p-4 text-xs font-bold uppercase tracking-widest">Jumlah</th>
-              <th className="p-4 text-xs font-bold uppercase tracking-widest">Total Biaya</th>
-              <th className="p-4 text-xs font-bold uppercase tracking-widest">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-500 italic">Memuat data...</td></tr>
-            ) : filteredLogs.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-500 italic">Belum ada catatan pengisian BBM untuk filter ini.</td></tr>
-            ) : (
-              filteredLogs.map((log) => (
-                <tr key={log.id} className="border-b border-gray-100 hover:bg-neon-green/5 transition-colors">
-                  <td className="p-4 font-medium">{format(new Date(log.tanggal), 'dd MMM yyyy')}</td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Car size={14} className="text-dark-green" />
-                      <span className="font-bold">{log.kendaraan?.plat_nomor}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <p className="font-bold">{log.nama_pom}</p>
-                    <p className="text-xs text-gray-500">{log.jenis_bbm}</p>
-                  </td>
-                  <td className="p-4 font-bold text-dark-green">
-                    {log.kilometer} KM
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-1 font-bold">
-                      <Droplets size={14} className="text-blue-500" />
-                      <span>{log.jumlah_liter} L</span>
-                    </div>
-                    <p className="text-xs text-gray-400 font-medium italic">@ Rp {(log.harga_perliter || 0).toLocaleString('id-ID')}</p>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-1 font-black text-dark-green text-lg">
-                      <span>Rp {(log.total_harga || 0).toLocaleString('id-ID')}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
+      <div className="space-y-6">
+        {loading && !showForm ? (
+          <div className="flex flex-col items-center justify-center py-24 space-y-4">
+             <div className="w-10 h-10 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Fetching Fuel Logs...</p>
+          </div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="bg-white border-4 border-dashed border-gray-100 rounded-[32px] text-center py-24 px-6">
+            <div className="bg-orange-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Fuel size={40} className="text-orange-200" />
+            </div>
+            <h3 className="text-xl font-black uppercase italic text-text-black mb-2">BBM Kosong</h3>
+            <p className="text-gray-500 text-sm max-w-xs mx-auto">Anda belum mencatat pengisian bbm. Klik tombol "Entry Baru" untuk memulai pencatatan.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {filteredLogs.map((log, idx) => (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                key={log.id}
+                className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hover:shadow-xl transition-all group flex flex-col md:flex-row md:items-center gap-6"
+              >
+                {/* Date & Vehicle Info */}
+                <div className="flex items-center gap-4 min-w-[200px]">
+                  <div className="bg-light-gray h-12 w-12 rounded-2xl flex flex-col items-center justify-center text-text-black shrink-0">
+                    <span className="text-[8px] font-black uppercase leading-none opacity-50">{format(new Date(log.tanggal), 'MMM')}</span>
+                    <span className="text-xl font-black leading-none mt-1">{format(new Date(log.tanggal), 'dd')}</span>
+                  </div>
+                  <div>
+                    <h3 className="font-black italic uppercase text-text-black leading-tight flex items-center gap-2">
+                       {log.kendaraan?.plat_nomor}
+                       <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">{log.jenis_bbm}</span>
+                    </h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{log.kendaraan?.jenis_kendaraan}</p>
+                  </div>
+                </div>
+
+                {/* Main Stats Area */}
+                <div className="grid grid-cols-2 md:grid-cols-3 flex-grow gap-4 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-gray-100 md:pl-6">
+                   <div className="flex flex-col">
+                      <span className="text-[8px] font-bold uppercase text-gray-400 mb-1 flex items-center gap-1"><Gauge size={10} /> Odometer</span>
+                      <span className="font-black text-sm text-dark-green tracking-tight">{log.kilometer.toLocaleString()} KM</span>
+                   </div>
+                   <div className="flex flex-col">
+                      <span className="text-[8px] font-bold uppercase text-gray-400 mb-1 flex items-center gap-1"><Droplets size={10} /> Volume</span>
+                      <span className="font-black text-sm tracking-tight">{log.jumlah_liter} <span className="text-[10px] font-normal uppercase">Liter</span></span>
+                   </div>
+                   <div className="flex flex-col col-span-2 md:col-span-1">
+                      <span className="text-[8px] font-bold uppercase text-gray-400 mb-1 flex items-center gap-1"><MapPin size={10} /> Lokasi</span>
+                      <span className="font-black text-xs text-text-black truncate uppercase tracking-tight">{log.nama_pom}</span>
+                   </div>
+                </div>
+
+                {/* Price Summary & Actions */}
+                <div className="flex items-center justify-between md:justify-end gap-6 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-gray-100 md:pl-6">
+                   <div className="text-right">
+                      <span className="text-[8px] font-black uppercase text-orange-500 block">Total Biaya</span>
+                      <h4 className="text-2xl font-black italic tracking-tighter text-text-black">
+                         <span className="text-xs font-normal not-italic text-gray-400 mr-1">Rp</span>
+                         {log.total_harga.toLocaleString()}
+                      </h4>
+                   </div>
+                   
+                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => handleEdit(log)}
-                        className="text-gray-400 hover:text-dark-green transition-colors"
+                        className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all"
                       >
-                        <Edit2 size={18} />
+                        <Edit2 size={20} />
                       </button>
                       <button 
                         onClick={() => setLogToDelete({ id: log.id, vehicleId: log.kendaraan_id })}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={20} />
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                   </div>
+                   
+                   <ChevronRight className="text-gray-200 md:hidden" />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
+
       <DeleteModal
         isOpen={!!logToDelete}
         onClose={() => setLogToDelete(null)}
         onConfirm={confirmDelete}
         isLoading={isDeleting}
-        title="Hapus Log BBM"
-        message="Apakah Anda yakin ingin menghapus catatan pengisian BBM ini? Angka KM kendaraan akan disinkronkan ulang."
+        title="Hapus Catatan BBM"
+        message="Yakin ingin menghapus catatan bbm ini? KM kendaraan akan dikembalikan ke catatan sebelumnya."
       />
     </div>
   );

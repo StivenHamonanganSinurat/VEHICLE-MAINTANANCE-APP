@@ -5,6 +5,7 @@ import Vehicles from './pages/Vehicles';
 import Fuel from './pages/Fuel';
 import Service from './pages/Service';
 import Analysis from './pages/Analysis';
+import Settings from './pages/Settings';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/fuel" element={<Fuel />} />
           <Route path="/service" element={<Service />} />
           <Route path="/analysis" element={<Analysis />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </Layout>
     </Router>

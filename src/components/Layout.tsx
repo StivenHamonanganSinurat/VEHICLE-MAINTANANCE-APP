@@ -1,109 +1,151 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Car, Fuel, Wrench, LayoutDashboard, BarChart3, Menu, X } from 'lucide-react';
+import { Car, Fuel, Wrench, LayoutDashboard, BarChart3, Menu, X, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { supabase } from '../lib/supabase';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const location = useLocation();
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Kendaraan', path: '/vehicles', icon: Car },
+    { name: 'Home', path: '/', icon: LayoutDashboard },
+    { name: 'Mobil', path: '/vehicles', icon: Car },
     { name: 'BBM', path: '/fuel', icon: Fuel },
     { name: 'Service', path: '/service', icon: Wrench },
-    { name: 'Analisis', path: '/analysis', icon: BarChart3 },
+    { name: 'Data', path: '/analysis', icon: BarChart3 },
   ];
 
+  const currentPath = location.pathname;
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <nav className="bg-dark-green text-white shadow-lg sticky top-0 z-50">
+    <div className="min-h-screen bg-light-gray flex flex-col font-sans selection:bg-neon-green selection:text-text-black">
+      {/* Top Header - Hidden on Mobile Scroll maybe, but let's keep it clean */}
+      <header className="bg-dark-green text-white shadow-xl sticky top-0 z-40 md:relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="bg-neon-green p-2 rounded-lg">
+          <div className="flex items-center justify-between h-16 md:h-20">
+            <Link to="/" className="flex items-center gap-3 group">
+              <motion.div 
+                whileHover={{ rotate: 15, scale: 1.1 }}
+                className="bg-neon-green p-2 rounded-xl shadow-[0_0_15px_rgba(57,255,20,0.3)] transition-all group-hover:shadow-[0_0_25px_rgba(57,255,20,0.5)]"
+              >
                 <Car className="text-text-black h-6 w-6" />
+              </motion.div>
+              <div className="flex flex-col leading-none">
+                <span className="font-black text-xl tracking-tighter text-neon-green uppercase italic">Vehicle<span className="text-white">App</span></span>
+                <span className="text-[9px] uppercase tracking-[0.2em] font-bold opacity-60">Personal Fleet Manager</span>
               </div>
-              <span className="font-bold text-xl tracking-tight text-neon-green">VehicleApp</span>
-            </div>
+            </Link>
             
-            {/* Desktop Menu */}
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                {navItems.map((item) => (
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-1">
+              {navItems.map((item) => {
+                const isActive = currentPath === item.path;
+                return (
                   <Link
                     key={item.name}
                     to={item.path}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      location.pathname === item.path
-                        ? 'bg-neon-green text-text-black'
-                        : 'text-gray-300 hover:bg-neon-green hover:text-text-black'
+                    className={`relative px-4 py-2 rounded-lg text-sm font-black uppercase italic tracking-tight transition-all duration-300 ${
+                      isActive
+                        ? 'text-text-black'
+                        : 'text-gray-400 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <item.icon size={18} />
+                    <span className="relative z-10 flex items-center gap-2">
+                      <item.icon size={16} />
                       {item.name}
-                    </div>
+                    </span>
+                    {isActive && (
+                      <motion.div 
+                        layoutId="nav-bg"
+                        className="absolute inset-0 bg-neon-green rounded-lg z-0 shadow-[0_0_20px_rgba(57,255,20,0.4)]"
+                        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
                   </Link>
-                ))}
-              </div>
+                );
+              })}
+            </nav>
+
+            <div className="hidden md:block">
+              <Link to="/settings" className="p-2 text-gray-400 hover:text-neon-green transition-colors block">
+                <Settings size={20} />
+              </Link>
             </div>
 
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="inline-flex items-center justify-center p-2 rounded-md text-neon-green hover:bg-neon-green hover:text-text-black focus:outline-none"
-              >
-                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
+            {/* Mobile simplified header (Right side) */}
+            <div className="md:hidden flex items-center gap-4">
+               {/* Just a small indicator or settings icon */}
+               <Link to="/settings" className="p-2 text-gray-400 hover:text-neon-green transition-colors">
+                  <Settings size={20} />
+               </Link>
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isMenuOpen && (
+      {/* Main Content Area */}
+      <main className="flex-grow pb-24 md:pb-8 pt-6 md:pt-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatePresence mode="wait">
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-dark-green border-t border-neon-green/20"
+              key={location.pathname}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
             >
-              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.path}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`block px-3 py-2 rounded-md text-base font-medium ${
-                      location.pathname === item.path
-                        ? 'bg-neon-green text-text-black'
-                        : 'text-gray-300 hover:bg-neon-green hover:text-text-black'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon size={20} />
-                      {item.name}
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              {children}
             </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
-
-      <main className="flex-grow container mx-auto px-4 py-8 max-w-7xl">
-        {children}
+          </AnimatePresence>
+        </div>
       </main>
 
-      <footer className="bg-dark-green text-white py-6 mt-auto">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-sm opacity-70">
-            &copy; {new Date().getFullYear()} Vehicle Maintenance App. Built with Neon Green.
+      {/* Bottom Navigation for Mobile */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-dark-green/10 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-around items-center h-16 px-2">
+          {navItems.map((item) => {
+            const isActive = currentPath === item.path;
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`flex flex-col items-center justify-center w-full h-full relative transition-all duration-300 ${
+                  isActive ? 'text-dark-green' : 'text-gray-400'
+                }`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-neon-green/30 scale-110' : ''}`}>
+                  <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                </div>
+                <span className={`text-[10px] font-black uppercase mt-1 tracking-tighter ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                  {item.name}
+                </span>
+                {isActive && (
+                  <motion.div 
+                    layoutId="bottom-nav-indicator"
+                    className="absolute -top-[2px] w-8 h-1 bg-dark-green rounded-full shadow-[0_0_10px_rgba(0,77,64,0.4)]"
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Footer - Only visible on desktop or tablet */}
+      <footer className="hidden md:block bg-white border-t-2 border-dark-green/5 py-10 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Car className="text-dark-green h-5 w-5" />
+            <span className="font-black italic uppercase tracking-tighter text-dark-green">Vehicle<span className="text-neon-green bg-dark-green px-1 ml-0.5">App</span></span>
+          </div>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Personal Fleet Management System &bull; {new Date().getFullYear()}
           </p>
+          <div className="flex gap-4 opacity-50">
+             {/* Social or links placeholders */}
+             <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+             <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+          </div>
         </div>
       </footer>
     </div>

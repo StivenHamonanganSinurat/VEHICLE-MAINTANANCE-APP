@@ -18,6 +18,9 @@ export default defineConfig(({mode}) => {
           short_name: 'VehicleApp',
           description: 'A comprehensive app for tracking vehicle maintenance, fuel logs, and service history.',
           theme_color: '#004d40',
+          background_color: '#004d40',
+          display: 'standalone',
+          orientation: 'portrait',
           icons: []
         }
       })

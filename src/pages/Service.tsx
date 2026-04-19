@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Wrench, Plus, Trash2, Calendar, Hash, DollarSign, Car, Settings, Edit2 } from 'lucide-react';
+import { Wrench, Plus, Trash2, Calendar, Hash, DollarSign, Car, Settings, Edit2, ShieldCheck, ChevronRight, Gauge, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import DeleteModal from '../components/DeleteModal';
@@ -27,11 +27,9 @@ export default function ServiceLogs() {
   const [showForm, setShowForm] = useState(false);
   const [editingLog, setEditingLog] = useState<ServiceLog | null>(null);
   
-  // State for deletion
   const [logToDelete, setLogToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // Raw input states
   const [kmInput, setKmInput] = useState('');
   const [biayaInput, setBiayaInput] = useState('');
 
@@ -136,8 +134,8 @@ export default function ServiceLogs() {
       handleCancelForm();
       fetchData();
     } catch (err) {
-      console.error('Submit Error:', err);
-      alert(`Gagal menyimpan log: ${err instanceof Error ? err.message : 'Terjadi kesalahan'}`);
+      console.error(err);
+      alert('Gagal menyimpan data.');
     } finally {
       setLoading(false);
     }
@@ -145,7 +143,6 @@ export default function ServiceLogs() {
 
   async function confirmDelete() {
     if (!logToDelete) return;
-    
     setIsDeleting(true);
     try {
       const { error } = await supabase.from('service').delete().eq('id', logToDelete);
@@ -153,106 +150,121 @@ export default function ServiceLogs() {
       await fetchData();
       setLogToDelete(null);
     } catch (err) {
-      console.error('Delete Error:', err);
-      alert('Gagal menghapus: ' + (err instanceof Error ? err.message : 'Error tidak diketahui'));
+      console.error(err);
     } finally {
       setIsDeleting(false);
     }
   }
 
   return (
-    <div className="space-y-8">
-      <header className="flex justify-between items-center">
+    <div className="space-y-8 pb-20">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-black text-text-black tracking-tighter uppercase italic">
-            Riwayat <span className="text-dark-green">Service</span>
+          <h1 className="text-3xl md:text-4xl font-black text-text-black tracking-tighter uppercase italic">
+            Log <span className="text-purple-600">Service</span>
           </h1>
-          <p className="text-gray-600">Catatan perawatan dan perbaikan kendaraan Anda.</p>
+          <div className="flex items-center gap-2 mt-1">
+             <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></div>
+             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{logs.length} Total Perawatan</p>
+          </div>
         </div>
-        <button 
+        
+        <motion.button 
+          whileTap={{ scale: 0.95 }}
           onClick={() => {
             if (showForm) handleCancelForm();
             else setShowForm(true);
           }}
-          className="btn-primary flex items-center gap-2"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-black uppercase italic tracking-tight shadow-lg shadow-purple-500/20 hover:bg-purple-700 transition-all"
         >
-          {showForm ? 'Batal' : <><Plus size={20} /> Tambah Log Service</>}
-        </button>
+          {showForm ? 'Batal' : <><Plus size={20} /> Input Service</>}
+        </motion.button>
       </header>
 
       <AnimatePresence>
         {showForm && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="card bg-white"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-white rounded-3xl p-6 shadow-xl border-2 border-purple-500/5 overflow-hidden"
           >
-            <h2 className="text-xl font-bold mb-4">{editingLog ? 'Edit Log Service' : 'Tambah Log Service'}</h2>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Pilih Kendaraan</label>
-                <select
-                  required
-                  className="input-field"
-                  value={formData.kendaraan_id}
-                  onChange={(e) => setFormData({ ...formData, kendaraan_id: e.target.value })}
+            <h2 className="text-xl font-black uppercase italic text-purple-600 mb-6">{editingLog ? 'Edit Data Service' : 'Registrasi Service Baru'}</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Pilih Unit</label>
+                  <select
+                    required
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
+                    value={formData.kendaraan_id}
+                    onChange={(e) => setFormData({ ...formData, kendaraan_id: e.target.value })}
+                  >
+                    <option value="">-- Pilih --</option>
+                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.plat_nomor}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Tanggal Service</label>
+                  <input
+                    required
+                    type="date"
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
+                    value={formData.tanggal_service}
+                    onChange={(e) => setFormData({ ...formData, tanggal_service: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Kilometer Saat Ini</label>
+                  <input
+                    required
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full bg-light-gray border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold transition-all"
+                    placeholder="12500"
+                    value={kmInput}
+                    onChange={(e) => handleKMInputChange(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Deskripsi Perbaikan / Jenis Service</label>
+                    <input
+                      required
+                      className="w-full bg-light-gray border-2 border-transparent focus:border-purple-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-bold placeholder:font-normal transition-all"
+                      placeholder="Ganti Oli, Service Rutin, Rem, dll"
+                      value={formData.jenis_service}
+                      onChange={(e) => setFormData({ ...formData, jenis_service: e.target.value })}
+                    />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Total Pengeluaran (Rp)</label>
+                    <input
+                      required
+                      type="number"
+                      className="w-full bg-purple-50 border-2 border-purple-200 focus:border-purple-500 focus:bg-white rounded-xl px-4 py-3 outline-none font-black text-purple-700 transition-all text-xl"
+                      placeholder="150000"
+                      value={biayaInput}
+                      onChange={(e) => handleBiayaInputChange(e.target.value)}
+                    />
+                 </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <motion.button 
+                  whileTap={{ scale: 0.98 }}
+                  type="submit" 
+                  disabled={loading}
+                  className="flex-grow bg-purple-600 text-white font-black uppercase italic tracking-widest py-4 rounded-xl shadow-lg shadow-purple-500/20"
                 >
-                  <option value="">-- Pilih Kendaraan --</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.plat_nomor}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Tanggal Service</label>
-                <input
-                  required
-                  type="date"
-                  className="input-field"
-                  value={formData.tanggal_service}
-                  onChange={(e) => setFormData({ ...formData, tanggal_service: e.target.value })}
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Kilometer Saat Service</label>
-                <input
-                  required
-                  type="text"
-                  inputMode="decimal"
-                  className="input-field font-bold text-dark-green"
-                  placeholder="Contoh: 12500,5"
-                  value={kmInput}
-                  onChange={(e) => handleKMInputChange(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col lg:col-span-2">
-                <label className="text-xs font-bold uppercase mb-1">Jenis Service / Perbaikan</label>
-                <input
-                  required
-                  className="input-field"
-                  placeholder="Contoh: Ganti Oli, Servis Rutin, Ganti Ban"
-                  value={formData.jenis_service}
-                  onChange={(e) => setFormData({ ...formData, jenis_service: e.target.value })}
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Biaya Service</label>
-                <input
-                  required
-                  type="number"
-                  className="input-field"
-                  placeholder="Contoh: 150000"
-                  value={biayaInput}
-                  onChange={(e) => handleBiayaInputChange(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end lg:col-span-3 gap-2">
-                <button type="submit" disabled={loading} className="btn-primary flex-1">
-                  {loading ? 'Menyimpan...' : (editingLog ? 'Update Log Service' : 'Simpan Log Service')}
-                </button>
+                  {loading ? 'Processing...' : (editingLog ? 'Simpan Update' : 'Registrasi Log')}
+                </motion.button>
                 <button 
                   type="button"
                   onClick={handleCancelForm}
-                  className="px-6 py-3 border-2 border-gray-200 text-gray-400 font-bold rounded hover:bg-gray-50 transition-colors"
+                  className="px-8 py-4 font-bold uppercase text-gray-400 hover:text-text-black transition-colors"
                 >
                   Batal
                 </button>
@@ -262,72 +274,92 @@ export default function ServiceLogs() {
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 gap-6">
-        {loading ? (
-          <div className="text-center py-12 text-dark-green font-bold">Memuat data...</div>
+      <div className="space-y-6">
+        {loading && !showForm ? (
+          <div className="flex flex-col items-center justify-center py-24 space-y-4">
+             <div className="w-10 h-10 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin" />
+             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Loading Maintenance History...</p>
+          </div>
         ) : logs.length === 0 ? (
-          <div className="card text-center py-12">
-            <Wrench className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-            <p className="text-gray-500">Belum ada riwayat service.</p>
+          <div className="bg-white border-4 border-dashed border-gray-100 rounded-[32px] text-center py-24 px-6">
+            <div className="bg-purple-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Wrench size={40} className="text-purple-200" />
+            </div>
+            <h3 className="text-xl font-black uppercase italic text-text-black mb-2">History Kosong</h3>
+            <p className="text-gray-500 text-sm max-w-xs mx-auto">Kendaraan Anda belum tercatat melakukan service. Rutin melakukan service menjaga performa unit.</p>
           </div>
         ) : (
-          logs.map((log) => (
-            <motion.div
-              layout
-              key={log.id}
-              className="card flex flex-col md:flex-row md:items-center justify-between gap-6"
-            >
-              <div className="flex items-center gap-4">
-                <div className="bg-dark-green p-4 rounded-xl text-neon-green">
-                  <Wrench size={24} />
+          <div className="grid grid-cols-1 gap-4">
+            {logs.map((log, idx) => (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.05 }}
+                key={log.id}
+                className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all group flex flex-col md:flex-row md:items-center gap-6"
+              >
+                {/* Visual Icon Box */}
+                <div className="bg-purple-600 h-16 w-16 rounded-[22px] flex items-center justify-center text-white shrink-0 shadow-lg shadow-purple-500/20 rotate-3 group-hover:rotate-0 transition-transform">
+                   <ShieldCheck size={32} />
                 </div>
-                <div>
-                  <h3 className="text-lg font-black uppercase">{log.jenis_service}</h3>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                    <span className="flex items-center gap-1 font-bold text-dark-green">
-                      <Car size={14} /> {log.kendaraan?.plat_nomor}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar size={14} /> {format(new Date(log.tanggal_service), 'dd MMMM yyyy')}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Hash size={14} /> {log.kilometer_service} KM
+
+                {/* Description Area */}
+                <div className="flex-grow space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl font-black uppercase italic text-text-black leading-tight tracking-tighter">{log.jenis_service}</h3>
+                    <span className="bg-light-gray px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center gap-1">
+                      <Car size={10} strokeWidth={3} /> {log.kendaraan?.plat_nomor}
                     </span>
                   </div>
+                  
+                  <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <div className="flex items-center gap-1.5"><Calendar size={14} className="text-purple-500" /> {format(new Date(log.tanggal_service), 'dd MMMM yyyy')}</div>
+                    <div className="flex items-center gap-1.5"><Gauge size={14} className="text-purple-500" /> {log.kilometer_service.toLocaleString()} KM</div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-4 md:pt-0">
-                <div className="text-right">
-                  <p className="text-xs font-bold uppercase text-gray-400">Total Biaya</p>
-                  <p className="text-2xl font-black text-dark-green">Rp {log.biaya.toLocaleString()}</p>
+                {/* Financial Summary */}
+                <div className="flex items-center justify-between md:justify-end gap-6 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-gray-100 md:pl-8">
+                  <div className="text-right">
+                    <span className="text-[10px] font-black uppercase text-purple-600 block leading-none mb-1">Maintenance Cost</span>
+                    <h4 className="text-2xl font-black italic tracking-tighter text-text-black">
+                       <span className="text-xs font-normal not-italic text-gray-400 mr-1">Rp</span>
+                       {log.biaya.toLocaleString()}
+                    </h4>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleEdit(log)}
+                      className="p-3 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-2xl transition-all"
+                    >
+                      <Edit2 size={20} />
+                    </button>
+                    <button 
+                      onClick={() => setLogToDelete(log.id)}
+                      className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 border-l pl-4">
-                  <button 
-                    onClick={() => handleEdit(log)}
-                    className="p-2 text-gray-400 hover:text-dark-green transition-colors"
-                  >
-                    <Edit2 size={20} />
-                  </button>
-                  <button 
-                    onClick={() => setLogToDelete(log.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={20} />
-                  </button>
+
+                <div className="absolute right-0 top-0 p-1 md:hidden">
+                    <ChevronRight size={16} className="text-gray-200" />
                 </div>
-              </div>
-            </motion.div>
-          ))
+              </motion.div>
+            ))}
+          </div>
         )}
       </div>
+
       <DeleteModal
         isOpen={!!logToDelete}
         onClose={() => setLogToDelete(null)}
         onConfirm={confirmDelete}
         isLoading={isDeleting}
-        title="Hapus Log Service"
-        message="Apakah Anda yakin ingin menghapus catatan riwayat service ini secara permanen?"
+        title="Hapus History Service"
+        message="Yakin ingin menghapus catatan perawatan ini? Data biaya perbaikan akan hilang dari laporan analisis."
       />
     </div>
   );
