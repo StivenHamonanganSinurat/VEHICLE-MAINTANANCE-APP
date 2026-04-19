@@ -21,7 +21,24 @@ export default defineConfig(({mode}) => {
           background_color: '#004d40',
           display: 'standalone',
           orientation: 'portrait',
-          icons: []
+          icons: [
+            {
+              src: 'https://cdn-icons-png.flaticon.com/512/3085/3085330.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'https://cdn-icons-png.flaticon.com/512/3085/3085330.png',
+              sizes: '512x512',
+              type: 'image/png'
+            },
+            {
+              src: 'https://cdn-icons-png.flaticon.com/512/3085/3085330.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ]
         }
       })
     ],
