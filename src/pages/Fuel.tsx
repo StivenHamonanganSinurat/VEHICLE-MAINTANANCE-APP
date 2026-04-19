@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Fuel, Plus, Trash2, Calendar, Droplets, DollarSign, Car } from 'lucide-react';
+import { Fuel, Plus, Trash2, Calendar, Droplets, DollarSign, Car, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
+import DeleteModal from '../components/DeleteModal';
 
 interface FuelLog {
   id: string;
@@ -13,6 +14,7 @@ interface FuelLog {
   jumlah_liter: number;
   harga_perliter: number;
   total_harga: number;
+  kilometer: number;
   kendaraan?: { plat_nomor: string; jenis_kendaraan: string };
 }
 
@@ -39,7 +41,19 @@ export default function FuelLogs() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingLog, setEditingLog] = useState<FuelLog | null>(null);
   const [fuelTypeFilter, setFuelTypeFilter] = useState<string>('all');
+  
+  // Add state for deletion
+  const [logToDelete, setLogToDelete] = useState<{ id: string; vehicleId: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Raw input states to handle commas and empty values naturally
+  const [kmInput, setKmInput] = useState('');
+  const [totalInput, setTotalInput] = useState('');
+  const [literInput, setLiterInput] = useState('');
+  const [priceInput, setPriceInput] = useState('');
+
   const [formData, setFormData] = useState({
     kendaraan_id: '',
     tanggal: format(new Date(), 'yyyy-MM-dd'),
@@ -48,6 +62,7 @@ export default function FuelLogs() {
     jumlah_liter: 0,
     harga_perliter: 0,
     total_harga: 0,
+    kilometer: 0,
   });
 
   useEffect(() => {
@@ -57,13 +72,121 @@ export default function FuelLogs() {
   const handleFuelTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedType = e.target.value;
     const fuel = FUEL_TYPES.find(f => f.name === selectedType);
+    const newPrice = fuel ? fuel.price : formData.harga_perliter;
+    
+    setPriceInput(newPrice.toString());
+    
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        jenis_bbm: selectedType,
+        harga_perliter: newPrice,
+      };
+      
+      // If user had a total price set, update liters based on new fuel price
+      if (newPrice > 0 && prev.total_harga > 0) {
+        const newLiters = prev.total_harga / newPrice;
+        updated.jumlah_liter = newLiters;
+        setLiterInput(newLiters.toFixed(3));
+      }
+      
+      return updated;
+    });
+  };
+
+  const handlePriceInputChange = (val: string) => {
+    setPriceInput(val);
+    const price = parseInt(val) || 0;
+    const total = formData.total_harga;
     
     setFormData(prev => ({
       ...prev,
-      jenis_bbm: selectedType,
-      harga_perliter: fuel ? fuel.price : prev.harga_perliter
+      harga_perliter: price,
+      jumlah_liter: price > 0 ? (total / price) : prev.jumlah_liter
     }));
+
+    if (price > 0 && total > 0) {
+      setLiterInput((total / price).toFixed(3));
+    }
   };
+
+  const handleTotalInputChange = (val: string) => {
+    setTotalInput(val);
+    const total = parseInt(val) || 0;
+    const price = formData.harga_perliter;
+    
+    setFormData(prev => ({
+      ...prev,
+      total_harga: total,
+      jumlah_liter: price > 0 ? (total / price) : prev.jumlah_liter
+    }));
+
+    if (price > 0) {
+      setLiterInput((total / price).toFixed(3));
+    }
+  };
+
+  const handleLiterInputChange = (val: string) => {
+    setLiterInput(val);
+    const liters = parseFloat(val) || 0;
+    const total = Math.round(liters * formData.harga_perliter);
+    
+    setFormData(prev => ({
+      ...prev,
+      jumlah_liter: liters,
+      total_harga: total
+    }));
+    setTotalInput(total === 0 ? '' : total.toString());
+  };
+
+  const handleKMInputChange = (val: string) => {
+    // Standardize input: replace comma with dot for internal parsing if user still types it
+    const cleanVal = val.replace(',', '.');
+    setKmInput(cleanVal);
+    const km = parseFloat(cleanVal) || 0;
+    setFormData(prev => ({ ...prev, kilometer: km }));
+  };
+
+  function handleEdit(log: FuelLog) {
+    setEditingLog(log);
+    setFormData({
+      kendaraan_id: log.kendaraan_id,
+      tanggal: log.tanggal,
+      nama_pom: log.nama_pom,
+      jenis_bbm: log.jenis_bbm,
+      jumlah_liter: log.jumlah_liter,
+      harga_perliter: log.harga_perliter,
+      total_harga: log.total_harga,
+      kilometer: log.kilometer,
+    });
+    
+    setKmInput(log.kilometer.toString());
+    setTotalInput(log.total_harga.toString());
+    setLiterInput(log.jumlah_liter.toString());
+    setPriceInput(log.harga_perliter.toString());
+    
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleCancelForm() {
+    setShowForm(false);
+    setEditingLog(null);
+    setFormData({
+      kendaraan_id: '',
+      tanggal: format(new Date(), 'yyyy-MM-dd'),
+      nama_pom: '',
+      jenis_bbm: '',
+      jumlah_liter: 0,
+      harga_perliter: 0,
+      total_harga: 0,
+      kilometer: 0,
+    });
+    setKmInput('');
+    setTotalInput('');
+    setLiterInput('');
+    setPriceInput('');
+  }
 
   async function fetchData() {
     setLoading(true);
@@ -80,40 +203,95 @@ export default function FuelLogs() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      total_harga: prev.jumlah_liter * prev.harga_perliter
-    }));
-  }, [formData.jumlah_liter, formData.harga_perliter]);
+  // Removed general logic to handle complex priorities
+  // Logic moved to direct handlers for better UX control
+
+  async function syncVehicleKM(vehicleId: string) {
+    if (!vehicleId) return;
+    
+    // Ambil log BBM dengan tanggal terbaru (desc) untuk kendaraan ini
+    const { data: latestLogs, error: logError } = await supabase
+      .from('bahan_bakar')
+      .select('kilometer')
+      .eq('kendaraan_id', vehicleId)
+      .order('tanggal', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (logError) {
+      console.error('Gagal fetch log terbaru untuk sinkronisasi:', logError);
+      return;
+    }
+
+    const latestKM = (latestLogs && latestLogs.length > 0) ? latestLogs[0].kilometer : 0;
+
+    // Update paksa ke tabel kendaraan
+    await supabase
+      .from('kendaraan')
+      .update({ kilometer: latestKM })
+      .eq('id', vehicleId);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!formData.kendaraan_id) return alert('Pilih kendaraan!');
     
-    const { error } = await supabase.from('bahan_bakar').insert([formData]);
-    if (error) {
-      alert('Gagal menambah log: ' + error.message);
-    } else {
-      setShowForm(false);
-      setFormData({
-        kendaraan_id: '',
-        tanggal: format(new Date(), 'yyyy-MM-dd'),
-        nama_pom: '',
-        jenis_bbm: '',
-        jumlah_liter: 0,
-        harga_perliter: 0,
-        total_harga: 0,
-      });
-      fetchData();
+    setLoading(true);
+    try {
+      // Pastikan payload bersih (hanya kolom database)
+      const payload = {
+        kendaraan_id: formData.kendaraan_id,
+        tanggal: formData.tanggal,
+        nama_pom: formData.nama_pom,
+        jenis_bbm: formData.jenis_bbm,
+        jumlah_liter: parseFloat(formData.jumlah_liter.toString()) || 0,
+        harga_perliter: parseInt(formData.harga_perliter.toString()) || 0,
+        total_harga: parseInt(formData.total_harga.toString()) || 0,
+        kilometer: parseFloat(formData.kilometer.toString()) || 0,
+      };
+
+      let result;
+      if (editingLog) {
+        result = await supabase
+          .from('bahan_bakar')
+          .update(payload)
+          .eq('id', editingLog.id);
+      } else {
+        result = await supabase.from('bahan_bakar').insert([payload]);
+      }
+
+      if (result.error) throw result.error;
+
+      // Sinkronisasi sinkron (tunggu sampai selesai)
+      await syncVehicleKM(formData.kendaraan_id);
+      
+      handleCancelForm();
+      await fetchData();
+      alert('Data berhasil disimpan!');
+    } catch (err) {
+      console.error('Database Error:', err);
+      alert(`Gagal menyimpan: ${err instanceof Error ? err.message : 'Error tidak diketahui'}`);
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function deleteLog(id: string) {
-    if (confirm('Hapus log pengisian BBM ini?')) {
-      const { error } = await supabase.from('bahan_bakar').delete().eq('id', id);
-      if (error) alert('Gagal menghapus: ' + error.message);
-      else fetchData();
+  async function confirmDelete() {
+    if (!logToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from('bahan_bakar').delete().eq('id', logToDelete.id);
+      if (error) throw error;
+      
+      await syncVehicleKM(logToDelete.vehicleId);
+      await fetchData();
+      setLogToDelete(null);
+    } catch (err) {
+      console.error('Delete Error:', err);
+      alert('Gagal menghapus: ' + (err instanceof Error ? err.message : 'Error tidak diketahui'));
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -145,7 +323,10 @@ export default function FuelLogs() {
           </div>
           
           <button 
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm) handleCancelForm();
+              else setShowForm(true);
+            }}
             className="btn-primary flex items-center gap-2"
           >
             {showForm ? 'Batal' : <><Plus size={20} /> Tambah Log</>}
@@ -161,7 +342,7 @@ export default function FuelLogs() {
             exit={{ opacity: 0, y: -20 }}
             className="card bg-white"
           >
-            <h2 className="text-xl font-bold mb-4">Tambah Log BBM</h2>
+            <h2 className="text-xl font-bold mb-4">{editingLog ? 'Edit Log BBM' : 'Tambah Log BBM'}</h2>
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex flex-col">
                 <label className="text-xs font-bold uppercase mb-1">Pilih Kendaraan</label>
@@ -208,32 +389,60 @@ export default function FuelLogs() {
                 </select>
               </div>
               <div className="flex flex-col">
-                <label className="text-xs font-bold uppercase mb-1">Jumlah Liter</label>
-                <input
-                  required
-                  type="number"
-                  step="0.01"
-                  className="input-field"
-                  value={formData.jumlah_liter}
-                  onChange={(e) => setFormData({ ...formData, jumlah_liter: parseFloat(e.target.value) })}
-                />
-              </div>
-              <div className="flex flex-col">
                 <label className="text-xs font-bold uppercase mb-1">Harga per Liter</label>
                 <input
                   required
                   type="number"
                   className="input-field"
-                  value={formData.harga_perliter}
-                  onChange={(e) => setFormData({ ...formData, harga_perliter: parseInt(e.target.value) })}
+                  value={priceInput}
+                  onChange={(e) => handlePriceInputChange(e.target.value)}
                 />
               </div>
-              <div className="flex flex-col bg-light-gray p-2 rounded border-2 border-dashed border-dark-green">
-                <label className="text-xs font-bold uppercase mb-1">Total Harga (Otomatis)</label>
-                <p className="text-xl font-black text-dark-green">Rp {formData.total_harga.toLocaleString()}</p>
+              <div className="flex flex-col">
+                <label className="text-xs font-bold uppercase mb-1">Total Bayar (Rp)</label>
+                <input
+                  required
+                  type="number"
+                  className="input-field font-bold text-dark-green"
+                  placeholder="Contoh: 36000"
+                  value={totalInput}
+                  onChange={(e) => handleTotalInputChange(e.target.value)}
+                />
               </div>
-              <div className="flex items-end lg:col-span-2">
-                <button type="submit" className="btn-primary w-full">Simpan Log BBM</button>
+              <div className="flex flex-col border-2 border-dashed border-gray-200 p-2 rounded bg-gray-50">
+                <label className="text-xs font-bold uppercase mb-1">Jumlah Liter (Otomatis)</label>
+                <input
+                  required
+                  type="text"
+                  inputMode="decimal"
+                  className="bg-transparent font-black text-xl focus:outline-none"
+                  value={literInput}
+                  onChange={(e) => handleLiterInputChange(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs font-bold uppercase mb-1">KM Saat Ini</label>
+                <input
+                  required
+                  type="text"
+                  inputMode="decimal"
+                  className="input-field font-bold text-dark-green"
+                  placeholder="Contoh: 12500,5"
+                  value={kmInput}
+                  onChange={(e) => handleKMInputChange(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end lg:col-span-2 gap-2">
+                <button type="submit" disabled={loading} className="btn-primary flex-1">
+                  {loading ? 'Menyimpan...' : (editingLog ? 'Update Log BBM' : 'Simpan Log BBM')}
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleCancelForm}
+                  className="px-6 py-3 border-2 border-gray-200 text-gray-400 font-bold rounded hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
               </div>
             </form>
           </motion.div>
@@ -247,6 +456,7 @@ export default function FuelLogs() {
               <th className="p-4 text-xs font-bold uppercase tracking-widest">Tanggal</th>
               <th className="p-4 text-xs font-bold uppercase tracking-widest">Kendaraan</th>
               <th className="p-4 text-xs font-bold uppercase tracking-widest">SPBU / BBM</th>
+              <th className="p-4 text-xs font-bold uppercase tracking-widest">Kilometer</th>
               <th className="p-4 text-xs font-bold uppercase tracking-widest">Jumlah</th>
               <th className="p-4 text-xs font-bold uppercase tracking-widest">Total Biaya</th>
               <th className="p-4 text-xs font-bold uppercase tracking-widest">Aksi</th>
@@ -271,26 +481,36 @@ export default function FuelLogs() {
                     <p className="font-bold">{log.nama_pom}</p>
                     <p className="text-xs text-gray-500">{log.jenis_bbm}</p>
                   </td>
+                  <td className="p-4 font-bold text-dark-green">
+                    {log.kilometer} KM
+                  </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 font-bold">
                       <Droplets size={14} className="text-blue-500" />
                       <span>{log.jumlah_liter} L</span>
                     </div>
-                    <p className="text-xs text-gray-400">@ Rp {log.harga_perliter.toLocaleString()}</p>
+                    <p className="text-xs text-gray-400 font-medium italic">@ Rp {(log.harga_perliter || 0).toLocaleString('id-ID')}</p>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-1 font-black text-dark-green">
-                      <DollarSign size={14} />
-                      <span>Rp {log.total_harga.toLocaleString()}</span>
+                    <div className="flex items-center gap-1 font-black text-dark-green text-lg">
+                      <span>Rp {(log.total_harga || 0).toLocaleString('id-ID')}</span>
                     </div>
                   </td>
                   <td className="p-4">
-                    <button 
-                      onClick={() => deleteLog(log.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleEdit(log)}
+                        className="text-gray-400 hover:text-dark-green transition-colors"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => setLogToDelete({ id: log.id, vehicleId: log.kendaraan_id })}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -298,6 +518,14 @@ export default function FuelLogs() {
           </tbody>
         </table>
       </div>
+      <DeleteModal
+        isOpen={!!logToDelete}
+        onClose={() => setLogToDelete(null)}
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+        title="Hapus Log BBM"
+        message="Apakah Anda yakin ingin menghapus catatan pengisian BBM ini? Angka KM kendaraan akan disinkronkan ulang."
+      />
     </div>
   );
 }

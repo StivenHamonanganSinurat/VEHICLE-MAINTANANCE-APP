@@ -36,6 +36,7 @@ interface FuelLog {
   total_harga: number;
   jumlah_liter: number;
   jenis_bbm: string;
+  kilometer: number;
 }
 
 interface ServiceLog {
@@ -182,7 +183,7 @@ export default function Analysis() {
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Total Pengeluaran</span>
               </div>
-              <h3 className="text-3xl font-black text-neon-green">Rp {(totalFuelCost + totalServiceCost).toLocaleString()}</h3>
+              <h3 className="text-3xl font-black text-neon-green">Rp {((totalFuelCost || 0) + (totalServiceCost || 0)).toLocaleString('id-ID')}</h3>
               <p className="text-xs mt-2 opacity-70">Gabungan biaya BBM & Service</p>
             </motion.div>
 
@@ -221,23 +222,35 @@ export default function Analysis() {
                     <thead className="sticky top-0 bg-white shadow-sm z-10">
                       <tr className="border-b-2 border-dark-green">
                         <th className="p-3 text-[10px] font-bold uppercase text-gray-400">Tanggal</th>
-                        <th className="p-3 text-[10px] font-bold uppercase text-gray-400">Jenis</th>
+                        <th className="p-3 text-[10px] font-bold uppercase text-gray-400">Kilometer</th>
                         <th className="p-3 text-[10px] font-bold uppercase text-gray-400">Volume</th>
+                        <th className="p-3 text-[10px] font-bold uppercase text-gray-400">Efisiensi</th>
                         <th className="p-3 text-[10px] font-bold uppercase text-gray-400">Biaya</th>
                       </tr>
                     </thead>
                     <tbody>
                       {fuelLogs.length === 0 ? (
-                        <tr><td colSpan={4} className="p-8 text-center text-gray-400 italic">Tidak ada data BBM.</td></tr>
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-400 italic">Tidak ada data BBM.</td></tr>
                       ) : (
-                        fuelLogs.map(log => (
-                          <tr key={log.id} className="border-b border-gray-50 hover:bg-neon-green/5">
-                            <td className="p-3 text-sm font-medium">{format(parseISO(log.tanggal), 'dd/MM/yy')}</td>
-                            <td className="p-3 text-sm">{log.jenis_bbm}</td>
-                            <td className="p-3 text-sm font-bold">{log.jumlah_liter}L</td>
-                            <td className="p-3 text-sm font-black text-dark-green">Rp {log.total_harga.toLocaleString()}</td>
-                          </tr>
-                        ))
+                        fuelLogs.map((log, index) => {
+                          let kml = '-';
+                          if (index < fuelLogs.length - 1) {
+                            const prevLog = fuelLogs[index + 1];
+                            const distance = log.kilometer - prevLog.kilometer;
+                            if (distance > 0) {
+                              kml = `${(distance / log.jumlah_liter).toFixed(1)} KM/L`;
+                            }
+                          }
+                          return (
+                            <tr key={log.id} className="border-b border-gray-50 hover:bg-neon-green/5">
+                              <td className="p-3 text-sm font-medium">{format(parseISO(log.tanggal), 'dd/MM/yy')}</td>
+                              <td className="p-3 text-sm">{log.kilometer?.toString()}</td>
+                              <td className="p-3 text-sm font-bold">{log.jumlah_liter?.toString()}L</td>
+                              <td className="p-3 text-sm italic font-medium text-blue-600">{kml}</td>
+                              <td className="p-3 text-sm font-black text-dark-green">Rp {(log.total_harga || 0).toLocaleString('id-ID')}</td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -268,9 +281,9 @@ export default function Analysis() {
                         serviceLogs.map(log => (
                           <tr key={log.id} className="border-b border-gray-50 hover:bg-neon-green/5">
                             <td className="p-3 text-sm font-medium">{format(parseISO(log.tanggal_service), 'dd/MM/yy')}</td>
-                            <td className="p-3 text-sm">{log.kilometer_service.toLocaleString()} KM</td>
+                            <td className="p-3 text-sm">{log.kilometer_service?.toString()} KM</td>
                             <td className="p-3 text-sm font-bold">{log.jenis_service}</td>
-                            <td className="p-3 text-sm font-black text-dark-green">Rp {log.biaya.toLocaleString()}</td>
+                            <td className="p-3 text-sm font-black text-dark-green">Rp {(log.biaya || 0).toLocaleString('id-ID')}</td>
                           </tr>
                         ))
                       )}
@@ -300,14 +313,14 @@ export default function Analysis() {
                   ></div>
                 </div>
                 <div className="flex justify-between text-[10px] font-bold uppercase">
-                  <span className="text-dark-green">BBM: Rp {totalFuelCost.toLocaleString()}</span>
-                  <span className="text-dark-green">Service: Rp {totalServiceCost.toLocaleString()}</span>
+                  <span className="text-dark-green">BBM: Rp {totalFuelCost.toLocaleString('id-ID')}</span>
+                  <span className="text-dark-green">Service: Rp {totalServiceCost.toLocaleString('id-ID')}</span>
                 </div>
               </div>
               
               <div className="bg-light-gray p-4 rounded-lg">
                 <p className="text-xs font-bold text-gray-500 uppercase mb-1">Rata-rata Harga BBM</p>
-                <p className="text-2xl font-black text-text-black">Rp {Math.round(avgFuelPrice).toLocaleString()} <span className="text-xs font-normal">/ Liter</span></p>
+                <p className="text-2xl font-black text-text-black">Rp {(Math.round(avgFuelPrice) || 0).toLocaleString('id-ID')} <span className="text-xs font-normal">/ Liter</span></p>
               </div>
             </div>
           </div>

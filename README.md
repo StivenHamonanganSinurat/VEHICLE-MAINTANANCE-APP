@@ -39,6 +39,7 @@ CREATE TABLE bahan_bakar (
     jumlah_liter DECIMAL(10,2) NOT NULL,
     harga_perliter DECIMAL(10,2) NOT NULL,
     total_harga DECIMAL(10,2) NOT NULL,
+    kilometer INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
