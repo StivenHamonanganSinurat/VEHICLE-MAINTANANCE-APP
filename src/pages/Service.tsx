@@ -26,6 +26,7 @@ export default function ServiceLogs() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingLog, setEditingLog] = useState<ServiceLog | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   
   const [logToDelete, setLogToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,6 +50,10 @@ export default function ServiceLogs() {
     setLoading(true);
     const { data: vehiclesData } = await supabase.from('kendaraan').select('id, plat_nomor');
     setVehicles(vehiclesData || []);
+    
+    if (vehiclesData && vehiclesData.length > 0 && !selectedVehicleId) {
+      setSelectedVehicleId(vehiclesData[0].id);
+    }
 
     const { data: logsData, error } = await supabase
       .from('service')
@@ -199,6 +204,10 @@ export default function ServiceLogs() {
     }
   }
 
+  const filteredLogs = logs.filter(log => 
+    log.kendaraan_id === selectedVehicleId
+  );
+
   return (
     <div className="space-y-8 pb-20">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
@@ -212,16 +221,36 @@ export default function ServiceLogs() {
           </div>
         </div>
         
-        <motion.button 
-          whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            if (showForm) handleCancelForm();
-            else setShowForm(true);
-          }}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-black uppercase italic tracking-tight shadow-lg shadow-purple-500/20 hover:bg-purple-700 transition-all"
-        >
-          {showForm ? 'Batal' : <><Plus size={20} /> Input Service</>}
-        </motion.button>
+        <div className="flex flex-wrap w-full sm:w-auto items-center gap-2">
+          <div className="flex-grow sm:flex-grow-0 relative">
+             <Car size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+             <select 
+                className="w-full sm:w-auto pl-10 pr-4 py-3 bg-white border-2 border-gray-100 rounded-xl text-xs font-bold uppercase focus:border-purple-600 outline-none transition-all"
+                value={selectedVehicleId}
+                onChange={(e) => setSelectedVehicleId(e.target.value)}
+              >
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.plat_nomor}</option>)}
+              </select>
+          </div>
+          
+          <motion.button 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (showForm) {
+                handleCancelForm();
+              } else {
+                setFormData(prev => ({
+                  ...prev,
+                  kendaraan_id: selectedVehicleId || prev.kendaraan_id
+                }));
+                setShowForm(true);
+              }
+            }}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-black uppercase italic tracking-tight shadow-lg shadow-purple-500/20 hover:bg-purple-700 transition-all"
+          >
+            {showForm ? 'Batal' : <><Plus size={20} /> Input Service</>}
+          </motion.button>
+        </div>
       </header>
 
       <AnimatePresence>
@@ -323,17 +352,17 @@ export default function ServiceLogs() {
              <div className="w-10 h-10 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin" />
              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Loading Maintenance History...</p>
           </div>
-        ) : logs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div className="bg-white border-4 border-dashed border-gray-100 rounded-[32px] text-center py-24 px-6">
             <div className="bg-purple-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <Wrench size={40} className="text-purple-200" />
             </div>
             <h3 className="text-xl font-black uppercase italic text-text-black mb-2">History Kosong</h3>
-            <p className="text-gray-500 text-sm max-w-xs mx-auto">Kendaraan Anda belum tercatat melakukan service. Rutin melakukan service menjaga performa unit.</p>
+            <p className="text-gray-500 text-sm max-w-xs mx-auto">Tidak ditemukan catatan service untuk kendaraan ini.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {logs.map((log, idx) => (
+            {filteredLogs.map((log, idx) => (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}

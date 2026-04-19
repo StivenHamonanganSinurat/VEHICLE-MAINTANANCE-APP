@@ -42,6 +42,7 @@ export default function FuelLogs() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingLog, setEditingLog] = useState<FuelLog | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [fuelTypeFilter, setFuelTypeFilter] = useState<string>('all');
   
   const [logToDelete, setLogToDelete] = useState<{ id: string; vehicleId: string } | null>(null);
@@ -188,6 +189,10 @@ export default function FuelLogs() {
     setLoading(true);
     const { data: vehiclesData } = await supabase.from('kendaraan').select('id, plat_nomor');
     setVehicles(vehiclesData || []);
+    
+    if (vehiclesData && vehiclesData.length > 0 && !selectedVehicleId) {
+      setSelectedVehicleId(vehiclesData[0].id);
+    }
 
     const { data: logsData, error } = await supabase
       .from('bahan_bakar')
@@ -284,9 +289,11 @@ export default function FuelLogs() {
     }
   }
 
-  const filteredLogs = fuelTypeFilter === 'all' 
-    ? logs 
-    : logs.filter(log => log.jenis_bbm === fuelTypeFilter);
+  const filteredLogs = logs.filter(log => {
+    const vehicleMatch = log.kendaraan_id === selectedVehicleId;
+    const typeMatch = fuelTypeFilter === 'all' || log.jenis_bbm === fuelTypeFilter;
+    return vehicleMatch && typeMatch;
+  });
 
   return (
     <div className="space-y-8 pb-20">
@@ -301,7 +308,18 @@ export default function FuelLogs() {
           </div>
         </div>
         
-        <div className="flex w-full sm:w-auto items-center gap-2">
+        <div className="flex flex-wrap w-full sm:w-auto items-center gap-2">
+          <div className="flex-grow sm:flex-grow-0 relative">
+             <Car size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+             <select 
+                className="w-full sm:w-auto pl-10 pr-4 py-3 bg-white border-2 border-gray-100 rounded-xl text-xs font-bold uppercase focus:border-orange-500 outline-none transition-all"
+                value={selectedVehicleId}
+                onChange={(e) => setSelectedVehicleId(e.target.value)}
+              >
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.plat_nomor}</option>)}
+              </select>
+          </div>
+
           <div className="flex-grow sm:flex-grow-0 relative">
              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
              <select 
@@ -317,8 +335,15 @@ export default function FuelLogs() {
           <motion.button 
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              if (showForm) handleCancelForm();
-              else setShowForm(true);
+              if (showForm) {
+                handleCancelForm();
+              } else {
+                setFormData(prev => ({
+                  ...prev,
+                  kendaraan_id: selectedVehicleId || prev.kendaraan_id
+                }));
+                setShowForm(true);
+              }
             }}
             className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-black uppercase italic tracking-tight shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
           >
