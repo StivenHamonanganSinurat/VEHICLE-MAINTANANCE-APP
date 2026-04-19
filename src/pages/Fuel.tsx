@@ -541,7 +541,7 @@ export default function FuelLogs() {
                       </h4>
                    </div>
                    
-                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="flex items-center gap-1">
                       <button 
                         onClick={() => handleEdit(log)}
                         className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all"

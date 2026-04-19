@@ -322,7 +322,7 @@ export default function Vehicles() {
                    vehicle.roda >= 6 ? <Truck size={24} strokeWidth={2.5} /> : 
                    <Car size={24} strokeWidth={2.5} />}
                 </div>
-                <div className="flex bg-light-gray p-1 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex bg-light-gray p-1 rounded-xl">
                   <button 
                     onClick={() => handleEdit(vehicle)}
                     className="p-2 text-gray-500 hover:text-dark-green transition-colors"
